@@ -22,7 +22,6 @@ def count_url_access(method):
         count_key = "count:" + url
         html = method(url)
 
-        store.incr(count_key)
         store.set(cached_key, html)
         store.expire(cached_key, 10)
         return html
@@ -34,3 +33,4 @@ def get_page(url: str) -> str:
     """ Returns HTML content of a url """
     res = requests.get(url)
     return res.text
+
