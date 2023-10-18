@@ -1,44 +1,30 @@
 #!/usr/bin/env python3
 """
-web cache and tracker
+Task: Advance Task
 """
-import requests
 import redis
+import requests
 from functools import wraps
-
-store = redis.Redis()
-
-
-def count_url_access(func):
-    """ Decorator counting how many times a URL is accessed """
-    @wraps(func)
-    def wrapper(url):
-        count_key = f"count:{url}"
-        store.incr(count_key)
-        return func(url)
-    return wrapper
+from typing import Callable
 
 
-def cache_result(func):
-    """ Decorator caching the result with an expiration time of 10 seconds """
-    @wraps(func)
-    def wrapper(url):
-        cached_key = f"cached:{url}"
-        cached_data = store.get(cached_key)
-        if cached_data:
-            return cached_data.decode("utf-8")
+redis_store = redis.Redis()
 
-        result = func(url)
-        store.set(cached_key, result)
-        store.expire(cached_key, 10)
+
+def data_cacher(method: Callable) -> Callable:
+    @wraps(method)
+    def invoker(url) -> str:
+        redis_store.incr(f'count:{url}')
+        result = redis_store.get(f'result:{url}')
+        if result:
+            return result.decode('utf-8')
+        result = method(url)
+        redis_store.set(f'count:{url}', 0)
+        redis_store.setex(f'result:{url}', 10, result)
         return result
-    return wrapper
+    return invoker
 
 
-@count_url_access
-@cache_result
+@data_cacher
 def get_page(url: str) -> str:
-    """ Returns HTML content of a URL """
-    res = requests.get(url)
-    return res.text
-
+    return requests.get(url).text
